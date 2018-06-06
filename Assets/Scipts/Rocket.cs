@@ -9,9 +9,11 @@ public class Rocket : MonoBehaviour {
     AudioSource audioSource;
     bool mySound;
     bool myToggle;
+    [SerializeField] float rcsTrust = 100f;
+    [SerializeField] float mainTrust = 100f;
 
-	// Use this for initialization
-	void Start ()
+    // Use this for initialization
+    void Start ()
     {
         rigidBody = GetComponent<Rigidbody>();
         audioSource = GetComponent<AudioSource>();
@@ -20,9 +22,21 @@ public class Rocket : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
 
-        ProcessInput();
-     
-        //sound 
+        Rotate();
+        Trusting();
+    }
+
+    private void Trusting()
+    {
+        if (Input.GetKey(KeyCode.Space))
+        {
+            rigidBody.AddRelativeForce(Vector3.up * mainTrust);
+            mySound = true;
+        }
+        else
+        {
+            mySound = false;
+        }
         if (mySound == true && myToggle == false)
         {
             audioSource.Play();
@@ -33,27 +47,41 @@ public class Rocket : MonoBehaviour {
             audioSource.Stop();
             myToggle = false;
         }
-
     }
 
-    private void ProcessInput()
-    {
-        if(Input.GetKey(KeyCode.Space))
-        {
-            rigidBody.AddRelativeForce(Vector3.up);
-            mySound = true;
-        } else
-        {
-            mySound = false;
-        }
 
-        if(Input.GetKey(KeyCode.A))
+    private void Rotate()
+    {
+        rigidBody.freezeRotation = true;  // take manual control of rotation
+
+        
+        float rotationThisFrame = rcsTrust * Time.deltaTime;
+
+        if (Input.GetKey(KeyCode.A))
         {
-            transform.Rotate(Vector3.forward);
-        } 
+            transform.Rotate(Vector3.forward * rotationThisFrame);
+        }
         else if (Input.GetKey(KeyCode.D))
         {
-            transform.Rotate(-Vector3.forward);
+            transform.Rotate(-Vector3.forward * rotationThisFrame);
+        }
+        rigidBody.freezeRotation = false; // resume physics control
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        switch (collision.gameObject.tag)
+        {
+            case "Friendly":
+                print("OK");
+                break;
+            case "Fuel":
+                print("Fuel");
+                break;
+            default:
+                print("Dead");
+                break;
         }
     }
+
 }
