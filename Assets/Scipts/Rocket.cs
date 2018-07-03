@@ -4,8 +4,10 @@ using UnityEngine.SceneManagement;
 public class Rocket : MonoBehaviour
 {
     enum State { Alive, Dying, Transcending }
-    State state = State.Alive;
 
+    //State state = State.Alive;
+    bool isTransitioning = false;
+    
     [SerializeField] float rcsTrust = 100f;
     [SerializeField] float mainTrust = 100f;
     [SerializeField] float levelTimeDelay = 2f;
@@ -17,6 +19,8 @@ public class Rocket : MonoBehaviour
     [SerializeField] ParticleSystem mainEngineParticles;
     [SerializeField] ParticleSystem deathParticles;
     [SerializeField] ParticleSystem nextLevelParticles;
+
+    bool debugMode = false;
 
     Rigidbody rigidBody;
     AudioSource audioSource;
@@ -30,16 +34,20 @@ public class Rocket : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (state == State.Alive) {
+        if (!isTransitioning)
+        {
             RespondToThrustInput();
             RespondToRotate();
         }
+        if (Debug.isDebugBuild)
+        {
+            DebugMode();
+        }
     }
-
 
     void OnCollisionEnter(Collision collision)
     {
-        if (state != State.Alive) { return; }
+        if (isTransitioning) { return; }
 
         switch (collision.gameObject.tag)
         {
@@ -50,14 +58,17 @@ public class Rocket : MonoBehaviour
                 StartSuccessSequence();
                 break;
             default:
-                StartDeathSequence();
-                break;
+                if (debugMode == false)
+                {
+                    StartDeathSequence();
+                } 
+                 break;
         }
     }
 
     private void StartSuccessSequence()
     {
-        state = State.Transcending;
+        isTransitioning = true;
         audioSource.Stop();
         audioSource.PlayOneShot(nextLevel);
         nextLevelParticles.Play();
@@ -66,7 +77,7 @@ public class Rocket : MonoBehaviour
 
     private void StartDeathSequence()
     {
-        state = State.Dying;
+        isTransitioning = true;
         audioSource.Stop();
         audioSource.PlayOneShot(death);
         deathParticles.Play();
@@ -75,7 +86,14 @@ public class Rocket : MonoBehaviour
 
     private void LoadNextLevel()
     {
-        SceneManager.LoadScene(1); //todo allow for more than 2 levels
+        int maxLevels = SceneManager.sceneCountInBuildSettings;
+        int currentSceneIndex = SceneManager.GetActiveScene().buildIndex;
+        int nextSceneIndex = currentSceneIndex + 1;
+        if (nextSceneIndex == maxLevels)
+        {
+            nextSceneIndex = 0;
+        }
+        SceneManager.LoadScene(nextSceneIndex); //todo allow for more than 2 levels
     }
 
     private void LoadLevelOne()
@@ -92,9 +110,14 @@ public class Rocket : MonoBehaviour
         }
         else
         {
-            audioSource.Stop();
-            mainEngineParticles.Stop();
+            StopApplyingTrust();
         }
+    }
+
+    private void StopApplyingTrust()
+    {
+        audioSource.Stop();
+        mainEngineParticles.Stop();
     }
 
     private void ApplyThrust()
@@ -109,11 +132,9 @@ public class Rocket : MonoBehaviour
 
     private void RespondToRotate()
     {
-        rigidBody.freezeRotation = true;  // take manual control of rotation
-
-
+        rigidBody.angularVelocity = Vector3.zero; // remove rotation due to phsyics engine
         float rotationThisFrame = rcsTrust * Time.deltaTime;
-
+    
         if (Input.GetKey(KeyCode.A))
         {
             transform.Rotate(Vector3.forward * rotationThisFrame);
@@ -122,6 +143,21 @@ public class Rocket : MonoBehaviour
         {
             transform.Rotate(-Vector3.forward * rotationThisFrame);
         }
-        rigidBody.freezeRotation = false; // resume physics control
     }
-}
+
+    void DebugMode()
+    {
+        if (Input.GetKeyDown(KeyCode.L))
+        {
+            LoadNextLevel();
+            Debug.Log("Debug Load Next level");
+        }
+        if (Input.GetKeyDown(KeyCode.C))
+        {
+            debugMode = !debugMode;
+            print(debugMode);
+        }
+    }
+
+
+ }
